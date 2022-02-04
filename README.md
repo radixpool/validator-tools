@@ -1,3 +1,10 @@
+## Install dependencies:
+```
+pip install -r requirements.txt
+```
+
+## Usage
+
 ```
 Usage: unregister.py [OPTIONS]
 

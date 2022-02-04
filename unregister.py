@@ -8,7 +8,6 @@ import json
 from cryptography.hazmat.primitives.serialization import pkcs12
 from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
 from cryptography.hazmat.backends import default_backend
-# from ecdsa.curves import SECP256k1
 from ecdsa.util import sigencode_der
 
 
