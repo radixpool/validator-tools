@@ -44,13 +44,16 @@ def main(filename, password, network, dry_run, verbose):
 
     with open(filename, 'rb') as f:
         private_key, certificate, additional_certificated = pkcs12.load_key_and_certificates(f.read(),
-                                                                                             str.encode(password),
+                                                                                             str.encode(
+                                                                                                 password),
                                                                                              default_backend())
     # Extract the unencrypted Private Key bytes
-    private_key_bytes = private_key.private_bytes(Encoding.DER, PrivateFormat.PKCS8, NoEncryption())
+    private_key_bytes = private_key.private_bytes(
+        Encoding.DER, PrivateFormat.PKCS8, NoEncryption())
 
     # Convert into Elliptic Curve Digital Signature Algorithm (ecdsa) private key object
-    private_key = ecdsa.SigningKey.from_der(private_key_bytes, hashfunc=hashlib.sha256)
+    private_key = ecdsa.SigningKey.from_der(
+        private_key_bytes, hashfunc=hashlib.sha256)
 
     # Derive public key from private key
     verifying_key = private_key.get_verifying_key()
@@ -74,27 +77,30 @@ def main(filename, password, network, dry_run, verbose):
 
     # Build Unregister Transaction
     data = f"""
-        {{
-          "jsonrpc": "2.0",
-          "method": "construction.build_transaction",
-          "params": {{
-              "actions": [
-                  {{
-                      "type": "UnregisterValidator",
-                      "validator": "{validator_address}"
-                  }}
-              ],
-              "feePayer": "{validator_wallet_address}"
+       {{
+          "network_identifier": {{
+            "network": "{network}"
           }},
-          "id": 1
-      }}
+          "actions": [
+            {{
+              "type": "UnregisterValidator",
+              "validator": {{ 
+                "address": "{validator_address}"
+              }}
+            }}
+          ],
+          "fee_payer": {{
+            "address": "{validator_wallet_address}"
+          }},
+          "disable_token_mint_and_burn": true
+        }}
     """
 
     if verbose:
         print("Build Transaction Request: \n", data)
 
-    req = requests.Request('POST', 'https://' + network + '.radixdlt.com/construction', data=data)
-    # req = requests.Request('POST', 'https://' + network + '.radixdlt.com/transaction/build', data=data)
+    req = requests.Request('POST', 'https://' + network +
+                           '.radixdlt.com/transaction/build', data=data)
     prepared = req.prepare()
     prepared.headers['Content-Type'] = 'application/json'
     # prepared.headers['X-Radixdlt-Target-Gw-Api'] = '1.0.2'
@@ -108,30 +114,34 @@ def main(filename, password, network, dry_run, verbose):
     resp_json = resp.json()
 
     if verbose:
-        print("Build Transaction Response: \n", json.dumps(resp_json, indent=3))
+        print("Build Transaction Response: \n",
+              json.dumps(resp_json, indent=3))
 
     # Extract fields from JSON Response
-    blob = resp_json['result']['transaction']['blob']
-    blob_to_sign = resp_json['result']['transaction']['hashOfBlobToSign']
+    unsigned_transaction = resp_json['transaction_build']['unsigned_transaction']
+    payload_to_sign = resp_json['transaction_build']['payload_to_sign']
 
     click.secho('Signing Request', fg='green')
 
     # Sign the blob_to_sign with the Keystore Private Key and convert to DER format
-    signature_der = private_key.sign_digest(bytearray.fromhex(blob_to_sign), sigencode=sigencode_der).hex()
+    signature_der = private_key.sign_digest(bytearray.fromhex(
+        payload_to_sign), sigencode=sigencode_der).hex()
 
     # Finalize Transaction
     data = f"""
-        {{
-          "jsonrpc": "2.0",
-          "method": "construction.finalize_transaction",
-          "params": {{
-            "blob": "{blob}",
-            "signatureDER": "{signature_der}",
-            "publicKeyOfSigner": "{public_key_compressed_bytes_hex}",
-            "immediateSubmit": true
+      {{
+          "network_identifier":{{
+            "network": "{network}"
           }},
-          "id": 1
-      }}
+          "unsigned_transaction": "{unsigned_transaction}",
+          "signature": {{
+             "bytes": "{signature_der}",
+             "public_key": {{
+               "hex": "{public_key_compressed_bytes_hex}"
+        }}
+      }},
+      "submit": true
+    }}
     """
 
     if verbose:
@@ -142,7 +152,9 @@ def main(filename, password, network, dry_run, verbose):
     else:
         click.secho('Submitting Request', fg='green')
 
-        req = requests.Request('POST', 'https://' + network + '.radixdlt.com/construction', data=data)
+        req = requests.Request(
+            'POST', 'https://' + network + '.radixdlt.com/transaction/finalize', data=data)
+
         prepared = req.prepare()
         prepared.headers['Content-Type'] = 'application/json'
         s = requests.Session()
@@ -154,7 +166,8 @@ def main(filename, password, network, dry_run, verbose):
         resp_json = resp.json()
 
         if verbose:
-          print("Finalize Transaction Response: \n", json.dumps(resp_json, indent=3))
+            print("Finalize Transaction Response: \n",
+                  json.dumps(resp_json, indent=3))
 
         click.secho('Success', fg='green')
 
