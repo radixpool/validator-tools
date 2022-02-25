@@ -103,7 +103,7 @@ def main(filename, password, network, dry_run, verbose):
                            '.radixdlt.com/transaction/build', data=data)
     prepared = req.prepare()
     prepared.headers['Content-Type'] = 'application/json'
-    # prepared.headers['X-Radixdlt-Target-Gw-Api'] = '1.0.2'
+    prepared.headers['X-Radixdlt-Target-Gw-Api'] = '1.0.2'
     s = requests.Session()
 
     # Send Request to Unregister Validator
@@ -157,6 +157,7 @@ def main(filename, password, network, dry_run, verbose):
 
         prepared = req.prepare()
         prepared.headers['Content-Type'] = 'application/json'
+        prepared.headers['X-Radixdlt-Target-Gw-Api'] = '1.0.2'
         s = requests.Session()
 
         # Send Request to Unregister Validator
